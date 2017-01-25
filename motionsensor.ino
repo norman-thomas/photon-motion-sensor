@@ -10,9 +10,10 @@ void setup() {
 
 void loop() {
     if (digitalRead(INPUT_PIN) == HIGH) {
-        Particle.publish(myName + "motion", PRIVATE);
+        Particle.publish(myName + "motion", "motion", 60, PRIVATE);
         while (digitalRead(INPUT_PIN) == HIGH)
             ; // wait until motion stops
+        Particle.publish(myName + "motion", "clear", 60, PRIVATE);
     }
 }
 
