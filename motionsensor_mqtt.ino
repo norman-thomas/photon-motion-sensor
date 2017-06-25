@@ -13,8 +13,8 @@ void callback(char* topic, byte* payload, unsigned int length);
  * want to use domain name,
  * MQTT client("www.sample.com", 1883, callback);
  **/
-byte server[] = { 192, 168, 178, 40 };
-MQTT client("pluto.fritz.box", 1883, callback);
+byte server[] = { 192, 168, 178, 1 };
+MQTT client(server, 1883, callback);
 
 // for QoS2 MQTTPUBREL message.
 // this messageid maybe have store list or array structure.
