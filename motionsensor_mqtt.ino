@@ -4,38 +4,13 @@ const int INPUT_PIN = D0;
 
 String myName = "";
 
-void callback(char* topic, byte* payload, unsigned int length);
+void callback(char* topic, byte* payload, unsigned int length) {}
 
-/**
- * if want to use IP address,
- * byte server[] = { XXX,XXX,XXX,XXX };
- * MQTT client(server, 1883, callback);
- * want to use domain name,
- * MQTT client("www.sample.com", 1883, callback);
- **/
-byte server[] = { 192, 168, 178, 1 };
-MQTT client(server, 1883, callback);
+MQTT client("SERVER", 1883, 120, callback);
 
 // for QoS2 MQTTPUBREL message.
 // this messageid maybe have store list or array structure.
 uint16_t qos2messageid = 0;
-
-// recieve message
-void callback(char* topic, byte* payload, unsigned int length) {
-    char p[length + 1];
-    memcpy(p, payload, length);
-    p[length] = NULL;
-
-    if (!strcmp(p, "RED"))
-        RGB.color(255, 0, 0);
-    else if (!strcmp(p, "GREEN"))
-        RGB.color(0, 255, 0);
-    else if (!strcmp(p, "BLUE"))
-        RGB.color(0, 0, 255);
-    else
-        RGB.color(255, 255, 255);
-    delay(1000);
-}
 
 // QOS ack callback.
 // if application use QOS1 or QOS2, MQTT server sendback ack message id.
@@ -49,17 +24,32 @@ void qoscallback(unsigned int messageid) {
     }
 }
 
+void report(String status) {
+    Particle.publish("/" + myName + "/motion", status, 60, PRIVATE);
+
+    if (!client.isConnected())
+    {
+        Particle.publish("/" + myName + "/mqtt", "reconnecting to MQTT server", 60, PRIVATE);
+        client.connect(System.deviceID());
+    }
+    
+    if (client.isConnected()) {
+        client.publish(myName + "/motion", status);
+    }
+}
+
 void setup() {
     pinMode(INPUT_PIN, INPUT);
     
     RGB.control(true);
+    RGB.color(255, 0, 0);
     RGB.brightness(0);
 
     Particle.subscribe("spark/device/name", nameHandler);
     Particle.publish("spark/device/name");
     
     // connect to the server
-    client.connect("sparkclient");
+    client.connect(System.deviceID());
 
     // add qos callback. If don't add qoscallback, ACK message from MQTT server is ignored.
     client.addQosCallback(qoscallback);
@@ -67,19 +57,21 @@ void setup() {
 
 void loop() {
     if (digitalRead(INPUT_PIN) == HIGH) {
-        RGB.color(255, 0, 0);
-        client.publish(myName + "/motion", "1");
-        Particle.publish("/" + myName + "/motion", "1", 60, PRIVATE);
+        RGB.brightness(255);
+        report("1");
+        
         while (digitalRead(INPUT_PIN) == HIGH)
-            ; // wait until motion stops
-        client.publish(myName + "/motion", "0");
-        Particle.publish("/" + myName + "/motion", "0", 60, PRIVATE);
-        RGB.color(0, 0, 0);
+            delay(100); // wait until motion stops
+        
+        report("0");
+        RGB.brightness(0);
     }
+    
+    if (client.isConnected())
+        client.loop();
 }
 
 void nameHandler(const char *topic, const char *data) {
     myName = String(data);
     Particle.publish("my name is:", myName);
 }
-
